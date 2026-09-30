@@ -48,6 +48,8 @@ ml = [
 # Declared so the research extra exists. Not installed for Phase 1 verification.
 research = [
     "mlflow>=2.14",
+    # MLflow 3.16 still uses noload, deprecated by SQLAlchemy 2.1.
+    "SQLAlchemy>=1.4,<2.1",
     "wandb>=0.17",
 ]
 dev = [
