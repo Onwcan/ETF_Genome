@@ -66,8 +66,9 @@ Testing/
 *.a
 *.lib
 perf.data*
-core
-core.*
+# Root-level crash dumps; a bare "core" also hides native source directories.
+/core
+/core.[0-9]*
 
 # OS metadata
 .DS_Store

@@ -43,7 +43,8 @@ jobs:
       - name: Install Qt runtime libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libopengl0
-      - run: python -m pip install -e ".[desktop,dev,ml]"
+      # mypy covers the optional tracking and tuning modules too.
+      - run: python -m pip install -e ".[desktop,dev,ml,research,training]"
       - run: python -m ruff check src tests apps scripts
       - run: python -m ruff format --check src tests apps scripts
       - run: python -m mypy

@@ -1,6 +1,7 @@
 #include "etf_genome/market/protocol.hpp"
 
 #include <bit>
+#include <concepts>
 
 namespace etf_genome {
 namespace {
@@ -16,13 +17,17 @@ void write_big_endian(std::byte* destination, Unsigned value) noexcept {
     }
 }
 
-template <typename Unsigned>
+template <std::unsigned_integral Unsigned>
+    requires (!std::same_as<Unsigned, bool> && sizeof(Unsigned) <= sizeof(std::uint64_t))
 Unsigned read_big_endian(const std::byte* source) noexcept {
-    Unsigned value = 0;
+    // uint16_t arithmetic would undergo signed int promotion before the shift.
+    // Keep shifts and byte accumulation unsigned, then narrow once after reading
+    // exactly sizeof(Unsigned) bytes. All supported wire integers fit uint64_t.
+    std::uint64_t value = 0;
     for (std::size_t index = 0; index < sizeof(Unsigned); ++index) {
-        value = static_cast<Unsigned>((value << 8U) | std::to_integer<unsigned>(source[index]));
+        value = (value << 8U) | std::to_integer<std::uint64_t>(source[index]);
     }
-    return value;
+    return static_cast<Unsigned>(value);
 }
 
 bool payload_size(MessageType type, std::uint32_t& size) noexcept {

@@ -61,6 +61,12 @@ private:
         return index == Capacity ? 0 : index + 1;
     }
 
+#if defined(_MSC_VER)
+    // Cache-line padding of these two hot states is intentional. Keep C4324
+    // enabled for every other project type and preserve the queue's alignment.
+#pragma warning(push)
+#pragma warning(disable : 4324)
+#endif
     struct alignas(cacheline_bytes) ProducerState {
         std::atomic<std::size_t> index{0};
         std::size_t cached_read = 0;
@@ -69,6 +75,9 @@ private:
         std::atomic<std::size_t> index{0};
         std::size_t cached_write = 0;
     } consumer_;
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
     alignas(cacheline_bytes) std::array<T, Capacity + 1> slots_{};
 };
 

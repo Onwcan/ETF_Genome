@@ -1,5 +1,6 @@
 #include "etf_genome/risk/snapshot.hpp"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
