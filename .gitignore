@@ -1,0 +1,75 @@
+# Local environments, tooling, and editor state
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+.tox/
+.idea/
+.vscode/
+.cursor/
+.codex/
+
+# Credentials and private reference material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*
+secrets*
+local-private/
+private-notes/
+
+# Runtime datasets, downloaded filings, user settings, and logs
+/data/**
+!/data/**/
+!/data/**/.gitkeep
+*.sqlite*
+*.db
+*.duckdb*
+*.parquet
+*.log
+/cachedir/
+/cache/
+
+# Research outputs, registries, models, and tracking state
+/models/
+/reports/
+/artifacts/
+/mlruns/
+/mlartifacts/
+/wandb/
+
+# Python / native / Windows build outputs
+build/
+build-*/
+dist/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Testing/
+*.exe
+*.dll
+*.pyd
+*.so
+*.dylib
+*.obj
+*.o
+*.a
+*.lib
+perf.data*
+core
+core.*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini

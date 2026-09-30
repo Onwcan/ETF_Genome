@@ -1,0 +1,50 @@
+# Local QQQ risk studies. The final test split is not used while tuning.
+
+seed = 42
+n_trials = 20
+nthread = 1
+tracking = "none"
+num_boost_round_min = 80
+num_boost_round_max = 220
+
+[[studies]]
+experiment_id = "qqq-volatility-20d"
+study_name = "qqq-volatility-20d-market"
+target = "forward_realized_vol_20d"
+feature_family = "market"
+task = "regression"
+
+[[studies]]
+experiment_id = "qqq-volatility-20d"
+study_name = "qqq-volatility-20d-genome"
+target = "forward_realized_vol_20d"
+feature_family = "genome"
+task = "regression"
+
+[[studies]]
+experiment_id = "qqq-drawdown-20d"
+study_name = "qqq-drawdown-20d-market"
+target = "forward_max_drawdown_20d"
+feature_family = "market"
+task = "regression"
+
+[[studies]]
+experiment_id = "qqq-drawdown-20d"
+study_name = "qqq-drawdown-20d-genome"
+target = "forward_max_drawdown_20d"
+feature_family = "genome"
+task = "regression"
+
+[[studies]]
+experiment_id = "qqq-tail-event-20d"
+study_name = "qqq-tail-event-20d-market"
+target = "tail_event_20d"
+feature_family = "market"
+task = "classification"
+
+[[studies]]
+experiment_id = "qqq-tail-event-20d"
+study_name = "qqq-tail-event-20d-genome"
+target = "tail_event_20d"
+feature_family = "genome"
+task = "classification"

@@ -1,0 +1,8 @@
+{
+  "scenario_id": "mega-cap-down",
+  "shocks": {
+    "NVDA": -0.2,
+    "AAPL": -0.1,
+    "MSFT": -0.05
+  }
+}

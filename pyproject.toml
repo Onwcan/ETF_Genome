@@ -1,0 +1,132 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "etf-genome"
+version = "0.2.0"
+description = "Analytical desktop application for ETF holdings, concentration, and mandate drift."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "ETF Genome" }]
+keywords = ["etf", "quantitative-finance", "holdings", "risk", "cpp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = [
+    "defusedxml>=0.7.1",
+    "duckdb>=1.1",
+    "httpx>=0.27",
+    "numpy>=1.26",
+    "polars>=1.9",
+    "pyarrow>=15",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "tzdata>=2024.1",
+]
+
+[project.optional-dependencies]
+# These libraries are also in the core dependencies because the desktop runtime
+# analyzes holdings itself. The extra exists so a data-only environment can be
+# named explicitly. Future connectors that the desktop app does not need belong
+# here instead of in the core list.
+data = [
+    "duckdb>=1.1",
+    "httpx>=0.27",
+    "polars>=1.9",
+    "pyarrow>=15",
+]
+desktop = ["PySide6>=6.6"]
+ml = [
+    "scikit-learn>=1.4",
+    "xgboost>=2.0",
+]
+# Declared so the research extra exists. Not installed for Phase 1 verification.
+research = [
+    "mlflow>=2.14",
+    "wandb>=0.17",
+]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8.2",
+    "ruff>=0.6",
+]
+orchestration-airflow = [
+    "apache-airflow>=2.10.4,<3",
+]
+orchestration-kubeflow = [
+    "kfp>=2.11,<3",
+]
+training = [
+    "optuna>=3.6",
+]
+packaging = [
+    "pyinstaller>=6.3",
+]
+
+[project.urls]
+Repository = "https://github.com/Onwcan/ETF_Genome"
+Issues = "https://github.com/Onwcan/ETF_Genome/issues"
+
+[project.scripts]
+etf-genome-slice = "etf_genome.services.phase1:main"
+etf-genome-desktop = "etf_genome.desktop.runner:main"
+etf-genome-sync-qqq = "etf_genome.services.sec_sync:main"
+etf-genome-export-native = "etf_genome.graph.native_export:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+etf_genome = ["py.typed"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests", "apps"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+    "SIM",
+    "RUF",
+]
+ignore = ["SIM108"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+packages = ["etf_genome"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["duckdb.*", "PySide6.*", "defusedxml", "defusedxml.*"]
+ignore_missing_imports = true
+
+# scikit-learn publishes no py.typed. Runtime code handles an unavailable native
+# library explicitly; do not follow the dependency's untyped internals.
+[[tool.mypy.overrides]]
+module = ["sklearn", "sklearn.*"]
+ignore_missing_imports = true

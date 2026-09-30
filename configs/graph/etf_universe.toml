@@ -1,0 +1,173 @@
+# Curated equity-ETF research universe. Tickers are labels only.
+# CIK, series id, and class id are resolved from the official SEC catalogue.
+# This list is not an investment recommendation.
+
+universe_id = "equity-overlap-1"
+
+[[funds]]
+ticker = "SPY"
+category = "broad-market"
+enabled = true
+reason = "Large S&P 500 ETF used as a broad-market anchor."
+
+[[funds]]
+ticker = "IVV"
+category = "broad-market"
+enabled = true
+reason = "Second S&P 500 ETF so overlap is not a single-issuer artifact."
+
+[[funds]]
+ticker = "VOO"
+category = "broad-market"
+enabled = true
+reason = "Vanguard S&P 500 share class in the same benchmark family."
+
+[[funds]]
+ticker = "VTI"
+category = "broad-market"
+enabled = true
+reason = "Total US market ETF with broader holdings than the S&P 500 funds."
+
+[[funds]]
+ticker = "ITOT"
+category = "broad-market"
+enabled = true
+reason = "iShares total US market ETF overlapping VTI."
+
+[[funds]]
+ticker = "SCHB"
+category = "broad-market"
+enabled = true
+reason = "Schwab broad US equity ETF."
+
+[[funds]]
+ticker = "IWV"
+category = "broad-market"
+enabled = true
+reason = "Russell 3000 ETF between large-cap and total-market books."
+
+[[funds]]
+ticker = "QQQ"
+category = "large-cap-growth"
+enabled = true
+reason = "Existing QQQ reference fund. Its cached N-PORT history is reused."
+
+[[funds]]
+ticker = "QQQM"
+category = "large-cap-growth"
+enabled = true
+reason = "Nasdaq-100 ETF that should sit near QQQ on holdings overlap."
+
+[[funds]]
+ticker = "VUG"
+category = "large-cap-growth"
+enabled = true
+reason = "Vanguard growth ETF with partial mega-cap overlap."
+
+[[funds]]
+ticker = "IWF"
+category = "large-cap-growth"
+enabled = true
+reason = "Russell 1000 Growth ETF."
+
+[[funds]]
+ticker = "SCHG"
+category = "large-cap-growth"
+enabled = true
+reason = "Schwab large-cap growth ETF."
+
+[[funds]]
+ticker = "IWM"
+category = "small-cap"
+enabled = true
+reason = "Russell 2000 ETF, structurally far from QQQ."
+
+[[funds]]
+ticker = "IJR"
+category = "small-cap"
+enabled = true
+reason = "S&P SmallCap 600 ETF."
+
+[[funds]]
+ticker = "VB"
+category = "small-cap"
+enabled = true
+reason = "Vanguard small-cap ETF."
+
+[[funds]]
+ticker = "SCHA"
+category = "small-cap"
+enabled = true
+reason = "Schwab small-cap ETF."
+
+[[funds]]
+ticker = "XLK"
+category = "sector"
+enabled = true
+reason = "Technology sector ETF overlapping QQQ's largest holdings."
+
+[[funds]]
+ticker = "XLF"
+category = "sector"
+enabled = true
+reason = "Financials sector ETF with a different holdings mix."
+
+[[funds]]
+ticker = "XLE"
+category = "sector"
+enabled = true
+reason = "Energy sector ETF."
+
+[[funds]]
+ticker = "XLV"
+category = "sector"
+enabled = true
+reason = "Health care sector ETF."
+
+[[funds]]
+ticker = "XLY"
+category = "sector"
+enabled = true
+reason = "Consumer discretionary sector ETF."
+
+[[funds]]
+ticker = "XLI"
+category = "sector"
+enabled = true
+reason = "Industrials sector ETF."
+
+[[funds]]
+ticker = "SMH"
+category = "technology-semiconductor"
+enabled = true
+reason = "Semiconductor ETF concentrated in names QQQ also holds."
+
+[[funds]]
+ticker = "SOXX"
+category = "technology-semiconductor"
+enabled = true
+reason = "Second semiconductor ETF for crowding inside this universe."
+
+[[funds]]
+ticker = "VGT"
+category = "technology-semiconductor"
+enabled = true
+reason = "Broad information-technology ETF."
+
+[[funds]]
+ticker = "DIA"
+category = "other-overlap"
+enabled = true
+reason = "Price-weighted large-cap ETF with a different construction."
+
+[[funds]]
+ticker = "IWB"
+category = "other-overlap"
+enabled = true
+reason = "Russell 1000 ETF."
+
+[[funds]]
+ticker = "ONEQ"
+category = "other-overlap"
+enabled = true
+reason = "Nasdaq composite ETF, wider than QQQ."

@@ -1,0 +1,7 @@
+etf_node_id,security_node_id,security_ticker,portfolio_weight
+synthetic:ETF_A,synthetic:SEC_1,SYN1,0.2
+synthetic:ETF_A,synthetic:SEC_2,SYN2,-0.1
+synthetic:ETF_A,synthetic:SEC_3,SYN3,0.5
+synthetic:ETF_A,synthetic:SEC_4,SYN4,
+synthetic:ETF_B,synthetic:SEC_1,SYN1,0.4
+synthetic:ETF_B,synthetic:SEC_2,SYN2,0.6
