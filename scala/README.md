@@ -1,3 +1,5 @@
 # Scala
 
-No Scala sources are included in Phase 1. Polars handles the current holdings tables. If a later ingestion or graph-edge aggregation job is large enough that the JVM stack is justified, it belongs in this directory and must write Parquet (or another runtime format) that the Windows application can read without a Scala installation.
+No Scala sources are included in this directory. Python and Polars handle the current holdings tables and graph construction; the desktop runtime has no Scala or JVM dependency.
+
+External transforms should produce validated artifacts rather than add a JVM process to desktop startup. See the [system architecture](../docs/ARCHITECTURE.md), [project status](../docs/PROJECT_STATUS.md), and the single [roadmap](../docs/ROADMAP.md) for ownership boundaries, implemented functionality, and future work.

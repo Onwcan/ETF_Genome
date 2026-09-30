@@ -1,45 +1,81 @@
 # Project status
 
-This document describes the source distributed in this repository. Prior development notes refer to local runs and artifacts; those outputs are not a fresh-clone guarantee. The repository publishes source and synthetic fixtures, not downloaded datasets, trained models, executables, or private research logs.
+ETF Genome currently combines a publication-aware Python ETF analysis/research application with a C++20 synthetic market-data and exposure runtime. This document records current implementation and verification limits; future priorities belong in the [roadmap](ROADMAP.md).
 
-## Implemented source
+The public repository supplies source, configuration templates, and synthetic fixtures. A fresh checkout does not include downloaded filings, market histories, trained models, executables, or private research logs.
 
-| Component | Scope | Evidence in the tree |
-| --- | --- | --- |
-| Holdings analytics | Normalization, stable identifiers, concentration, exposures, mandate drift | `data/normalization`, `genome`, `drift`, offline vertical-slice tests |
-| Local storage | Parquet snapshots, SQLite catalog, DuckDB with Polars fallback | `data/storage`, storage tests |
-| SEC ingestion | QQQ filing discovery, defensive XML parsing, caching, bounded retry and sync policy | `data/sources`, `data/ingestion`, parser and ingestion tests |
-| Desktop | Cached QQQ overview, background refresh, status display, local risk inference | `desktop`, `services`, desktop tests, PyInstaller spec |
-| Daily market data | QQQ sync, canonical provider schema, provenance and adjustment mode | Market provider and feature tests |
-| Risk baseline | Point-in-time holdings joins, forward risk targets, chronological splits, explicit training | `features/risk`, `training`, point-in-time and model tests |
-| Experiment lifecycle | Optuna, optional MLflow/W&B tracking, versioned candidates and explicit promotion | `experiments`, lifecycle scripts and tests |
-| Orchestration | Airflow DAG and Kubeflow pipeline definitions, local smoke interfaces | `orchestration`, orchestration tests |
-| Holdings graph | SEC-resolved fund universe, publication-aware snapshot, overlap, crowding, direct shocks | `graph`, graph tests and scripts |
-| Structural embedding | Optional PyTorch link-reconstruction research baseline | `research/graph/baseline.py` |
-| Native component | C++20 signed direct exposure, incremental price state, binary protocol/snapshot, bounded SPSC, Linux synthetic TCP/epoll feed, component benchmarks | `native`, CTest cases, Python CSV exporter |
+## Data layer
 
-The evidence column identifies code and test locations; it does not assert that all optional integrations or research runs have executed. The README provides commands to reproduce the offline checks.
+| Capability | Current state |
+| --- | --- |
+| SEC N-PORT | Filing discovery, defensive XML parsing, normalization, caching, retry/backoff, and incremental QQQ/graph-universe ingestion are implemented |
+| Holdings storage | Canonical Parquet snapshots and SQLite fund/filing/snapshot provenance are implemented |
+| Analytics | Concentration, signed exposure summaries, largest positions, and mandate drift are implemented; DuckDB summaries have a Polars fallback |
+| Point-in-time availability | Risk joins and graph snapshots use SEC publication dates, distinct from portfolio report/retrieval dates |
+| Market data | Twelve Data is the authoritative QQQ daily workflow; Tiingo, Massive, Alpha Vantage, and Yahoo comparison adapters exist without automatic failover |
+| Macro data | The FRED provider protocol exists; FRED/ALFRED ingestion and revision-aware features are not implemented |
 
-## Runtime and research boundary
+Provider credentials, current access terms, available history, and permitted use must be supplied/checked in the target environment. Adapter tests use fake transports; their passing results do not certify current live-provider behavior. Missing classifications and unresolved identities remain explicit.
 
-The Windows desktop reads a local cache and existing model artifacts. It does not start training, an orchestration cluster, a model server, or a C++ process. PyTorch, PyG, CUDA, WSL2, Airflow, and Kubeflow are not required to open it.
+## Risk research and model lifecycle
 
-Training needs your own permitted price history and suitable runtime dependencies. Model inference needs compatible artifacts produced by the explicit training workflow. Graph scenarios need locally ingested filings and a chosen as-of date. Graph universe size and coverage depend on actual SEC resolution and cached data; no previously reported local node counts are promised by a fresh checkout.
+- QQQ market/holdings features, forward 20-session volatility/drawdown targets, chronological splits, leakage checks, and XGBoost baseline training are implemented.
+- Optuna studies resume from local SQLite storage and tune against train/validation data; frozen candidate training evaluates the untouched test split.
+- W&B is optional and supports offline use. MLflow records local SQLite runs and artifacts; its integration test performs real local logging and lookup.
+- The local file-based registry tracks experiments, candidates, production models, and archived models. Promotion is an explicit command with compatibility/metric checks.
+- Desktop inference loads a compatible production artifact or existing local baseline fallback. It does not train, tune, or automatically promote models.
 
-The native replay and Linux loopback feed use generated events. The shock CLI calculates direct exposure from a static CSV or validated binary snapshot. Price updates maintain reference-relative returns through a sparse reverse index. Measured local component results and their scope are recorded in [NATIVE_PERFORMANCE.md](NATIVE_PERFORMANCE.md). They do not establish exchange latency, deployment suitability, or trading profitability.
+Training requires permitted local price history and compatible dependencies. No universal model-quality, trading-profitability, or pretrained-model claim follows from the existence of these workflows. See [model lifecycle](MODEL_LIFECYCLE.md) and [experiment tracking](EXPERIMENT_TRACKING.md).
 
-## Verification boundaries
+## Graph analytics
 
-- Ordinary pytest uses synthetic fixtures, temporary storage, and fake network transports. The two live integrations are opt-in.
-- Ruff and mypy cover the Python source configured in `pyproject.toml`; CTest checks the native component separately.
-- Formatter and publication checks support repository hygiene. Optional Python/native parity checks use an explicitly configured binary; GitHub Actions definitions do not imply that a remote CI run has passed.
-- Dependency groups and reproducible commands are supplied. Optional model training, SEC access, market-provider access, GPU operation, and cluster execution require separate verification in the target environment.
-- PyInstaller configuration and build helpers are present; compiled executables are generated locally.
-- Airflow and Kubeflow definitions do not establish a deployed scheduler or successful Kubernetes execution.
-- The structural embedding baseline's presence does not establish a trained or evaluated graph model.
+Implemented graph services resolve the configured fund universe against official SEC identities and build static publication-aware ETF-security snapshots. They calculate portfolio overlap, cosine/Jaccard similarity, security crowding, degree measures, and signed direct shock exposure.
 
-## Future work
+Universe size and coverage depend on actual identity resolution and cached filings. Unresolved/ambiguous funds and unsupported classifications are reported. Canonical holdings preserve missing weights, but graph aggregation currently uses Polars sum: an all-null weight group can become `0.0`, so graph missing-weight counts can understate unavailable source weights. Direct shock is a mechanical holdings calculation, without learned secondary propagation or a causal contagion interpretation.
 
-Phase 8 now provides the native C++ market-data and systems foundation. Phase 9 is native performance engineering, Linux profiling, and memory optimization. Phase 10 is Python/C++ integration with pybind11. Both remain future work. The temporal research proposal is retained as [Phase 11](PHASE11_ROADMAP.md), with the [original Phase 8 document](PHASE8_ROADMAP.md) preserved historically. No temporal model was implemented or trained in this phase.
+`research/graph/baseline.py` contains a structural link-reconstruction embedding scaffold. Native Windows PyTorch training was blocked by Windows Application Control, so no successfully trained/evaluated graph model is claimed. Temporal graph states/datasets, sequence models, and a temporal GNN are not implemented. See [shock graph](SHOCK_GRAPH.md) and [research environment](GRAPH_RESEARCH_ENVIRONMENT.md).
 
-Additional serving, monitoring, graph visualization, and larger fund universes remain separate future work. Historical documents such as `ARCHITECTURE.md` and `ROADMAP.md` describe earlier project stages; this status document and the README summarize the current source.
+## Native C++20
+
+| Component | Current state |
+| --- | --- |
+| Portable analytical core | Signed/missing-weight direct shocks, immutable sparse graph, CSV parsing, and scalar-reference checks |
+| Protocol and concurrency | Fixed-width big-endian EGMD frames, bounded incremental decoder, sequence counters, and bounded SPSC with explicit ownership |
+| Linux transport | Synthetic localhost nonblocking TCP/epoll server/client, stop-aware backpressure, optional affinity, and orderly worker cleanup |
+| Exposure runtime | Consumer-owned persistent reference prices/returns and sparse affected-fund updates |
+| Snapshots | Versioned binary graph save/load with size, bounds, checksum, and structural validation |
+| Measurement | Separate SPSC/decoder/exposure/TCP benchmarks, latency histograms, allocation-scope checks, and environment metadata |
+
+Portable code is verified with GCC, Clang, and MSVC; Linux networking is excluded from Windows builds. Native processing runs as separate executables and is not part of the desktop import/process graph. The current Python/C++ boundary is CSV export plus native binary snapshot compilation; pybind11 integration is absent.
+
+Known runtime limits include external instrument/tick mapping, no reconnect or session recovery, framing-only EOF validation, approximate histogram quantiles, and possible accumulated floating-point rounding. Local synthetic benchmarks and their exact scope are recorded in [native performance](NATIVE_PERFORMANCE.md); they do not establish exchange latency.
+
+## Desktop
+
+The PySide6 desktop displays cached QQQ holdings, freshness/status, background refresh results, and local risk estimates. Offline mode and provider failures preserve existing cache contents. Empty caches and missing models produce explicit unavailable status.
+
+PyInstaller specifications and PowerShell helpers exist for a local Windows `onedir` build. The desktop requires neither WSL2/PyTorch/CUDA nor orchestration/tracking services. No prebuilt executable, signed release, installer, auto-update mechanism, or fresh-machine release certification is distributed. See [Windows packaging](WINDOWS_PACKAGING.md).
+
+## Orchestration
+
+Airflow data DAG definitions and Kubeflow training pipeline definitions are implemented under `orchestration/`. Reusable tasks, manifests, definition checks, and smoke interfaces exist. These establish a foundation, not a deployed scheduler or successful container/Kubernetes training run.
+
+The desktop refresh coordinator operates independently. Orchestrated training ends at a candidate and does not promote automatically. Container builds, cluster execution, shared artifact storage, and live scheduled ingestion require separate target-environment verification. See [orchestration architecture](ORCHESTRATION_ARCHITECTURE.md).
+
+## CI and validation
+
+The verified remote baseline is green for Python on Ubuntu and Windows, publication validation, native GCC/Clang/MSVC, ASan/UBSan, TSan, and Python/C++ parity on Linux and Windows. Evidence links and exact validation boundaries are maintained in [VALIDATION.md](VALIDATION.md).
+
+Ordinary pytest uses synthetic fixtures, local temporary storage, and fake network transports. Live SEC/market integrations are opt-in. CTest validates the native subsystem separately; optional Python/native tests use an explicitly configured executable. CI correctness checks and local benchmark measurements have different purposes and environments.
+
+## Known environment constraints
+
+Windows Application Control blocked specific native libraries during earlier local checks, including PyTorch and DuckDB. These are environment-specific observations, not a statement that all Windows installations fail. The desktop has a DuckDB-to-Polars fallback. Deep-learning research should use an isolated Linux/WSL environment without weakening Windows security policy.
+
+Local WSL benchmark timings reflect scheduling, power, thermal, and virtualization variability. Airflow/Kubeflow runtime deployments, live-provider access, GPU operation, and release signing are not certified by the green offline CI matrix.
+
+## Not implemented
+
+Temporal graph learning, learned secondary shock propagation, in-process Python/C++ bindings, reconnect/session recovery, model-serving and drift-monitoring services, a desktop graph/stress explorer, and large-scale bulk N-PORT ingestion are absent. `serving` and `monitoring` remain package placeholders.
+
+Real exchange/broker connectivity, order routing, buy/sell signals, investment recommendations, profitability claims, causal contagion claims, mandatory paid infrastructure, and automatic model promotion are outside the current project scope.

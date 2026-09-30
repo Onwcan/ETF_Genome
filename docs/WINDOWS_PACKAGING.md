@@ -4,6 +4,8 @@ The repository supplies a PyInstaller specification for a Windows desktop build.
 It does not include a prebuilt executable, a signed release, or an installer.
 Build and smoke-test the application on the Windows machine that will produce it.
 
+See [Architecture](ARCHITECTURE.md) for the Python desktop boundary, [Model Lifecycle](MODEL_LIFECYCLE.md) for model selection, and [DuckDB on Windows](DUCKDB_WINDOWS.md) for an observed native-library constraint.
+
 ## Build from source
 
 From the repository root with Python 3.12:
@@ -76,9 +78,10 @@ try {
 Inspect the local log under `$smokeDataDir\logs` when startup fails. Build outputs
 and temporary application data are ignored by Git.
 
-## Remaining release work
+## Release validation boundary
 
-Code signing, an installer/uninstaller, an update mechanism, dependency/license
-review, and fresh-machine validation remain future work. Package size and startup
-time depend on the installed dependencies and bundled model artifacts; measure
-the produced build before making release claims.
+The build recipe and smoke test do not establish a signed, installable release
+or fresh-machine compatibility. Those milestones are tracked in the
+[Windows release roadmap](ROADMAP.md#windows-release-preparation).
+Package size and startup time depend on the installed dependencies and bundled
+model artifacts; measure the produced build before making release claims.

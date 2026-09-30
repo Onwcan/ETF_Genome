@@ -1,10 +1,16 @@
 # Contributing
 
-ETF Genome is a research application with explicit boundaries between local analytics, data acquisition, training, and desktop inference. Start with the [README](README.md) and [project status](docs/PROJECT_STATUS.md) to distinguish working code from roadmap ideas.
+ETF Genome combines Python data and research workflows with a C++20 native systems layer. Start with the [README](README.md), [documentation index](docs/README.md), and [project status](docs/PROJECT_STATUS.md). Future work belongs in the [roadmap](docs/ROADMAP.md).
 
 ## Development
 
-Use Python 3.12 in a virtual environment and install `.[desktop,dev,ml]`. Work from the repository root. The synthetic vertical slice and ordinary tests do not require credentials or external data.
+Use Python 3.12 in a virtual environment and work from the repository root. Install the same extras as the Python CI job so the full test suite and type checks can import the research modules:
+
+```bash
+python -m pip install -e ".[desktop,dev,ml,research,training]"
+```
+
+The synthetic vertical slice and ordinary tests do not require provider credentials or external datasets. Experiment tests use temporary local tracking stores and offline Weights & Biases runs.
 
 Before submitting a Python change, unset `ETF_GENOME_OFFLINE_MODE` or set it to `false` so tests can exercise their fake online paths. Keep the live-test opt-in switches unset, then run:
 
@@ -16,7 +22,7 @@ python -m pytest
 python scripts/check_publication.py
 ```
 
-For native changes, configure and build `native/` with CMake 3.16+ and a C++17 compiler, then run:
+For native changes, configure and build `native/` with CMake 3.16+ and a C++20 compiler, then run:
 
 ```text
 ctest --test-dir build/native -C Release --output-on-failure
@@ -24,7 +30,9 @@ ctest --test-dir build/native -C Release --output-on-failure
 
 Use synthetic fixtures for offline tests. Add regression coverage for changes that affect calculations, parsing, concurrency, model compatibility, or point-in-time availability. Explain any checks you could not run; do not substitute anticipated results for evidence.
 
-To run the optional cross-language parity test, set `ETF_GENOME_NATIVE_BINARY` to the native executable's absolute path and run `python -m pytest tests/integration/test_native_parity.py`. Without that setting the test skips. The Python and native GitHub Actions workflows in `.github/workflows/` provide repeatable CI checks; review the actual run results before reporting them as passing.
+To run the optional cross-language parity test, set `ETF_GENOME_NATIVE_BINARY` to the built executable and run `python -m pytest tests/integration/test_native_parity.py`. Without that setting the test skips. The native workflow configures this automatically. Follow the [native developer guide](native/README.md) for build options, platform support, and sanitizers.
+
+The [validation guide](docs/VALIDATION.md) records verification strategy and evidence. Correctness checks and controlled performance measurements serve different purposes; describe benchmark conditions when reporting throughput or latency.
 
 ## Design expectations
 

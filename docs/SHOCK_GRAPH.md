@@ -1,30 +1,30 @@
-# Shock graph
+# ETF-security shock graph
 
-Phase 7 builds a point-in-time ETF-security graph from public N-PORT holdings. It does not predict prices and it does not learn how a shock spreads beyond the holdings that were named.
+The graph layer builds a static point-in-time ETF-security graph from public N-PORT holdings. It implements overlap, crowding, and deterministic direct shock calculations. It does not model causal contagion or predict how a shock spreads beyond named holdings.
 
-## Snapshot date
+See [Graph Data Model](GRAPH_DATA_MODEL.md) for the artifact schema and [Architecture](ARCHITECTURE.md) for the Python/native responsibility boundary.
 
-For graph date `t` and ETF `e`, the graph uses the latest stored filing with `available_from <= t`. `available_from` is the SEC filing date. A portfolio dated June 30 that was filed on August 28 is absent from a graph dated August 27.
+## Snapshot selection
 
-## Nodes and edges
+For graph date `t` and ETF `e`, the graph selects the latest stored filing with `available_from <= t`. `available_from` is the SEC filing date. A portfolio dated June 30 that was filed on August 28 is absent from a graph dated August 27.
 
-ETF nodes use `cik` plus `series_id`. The ticker is a label. Security nodes prefer CUSIP, then ISIN, then ticker, then a name fallback. Placeholder values such as `N/A` and `NONE` are not identifiers. Holdings that share a security id inside one filing are summed. Negative weights are kept.
+ETF nodes use CIK plus series ID; the ticker is a label. Security nodes prefer CUSIP, then ISIN, then ticker, then a normalized-name fallback. Placeholder values such as `N/A` and `NONE` are not identifiers. Holdings sharing a security ID inside one filing are summed, and negative weights are kept.
 
 The bipartite edge list is authoritative. The ETF-to-ETF table is a projection.
 
 ## Overlap
 
-For two portfolios aligned on security id:
+For two portfolios aligned on security ID:
 
-- Weighted overlap is `sum_i min(w_i_A, w_i_B)`. When every aligned weight is non-negative, that sum is a long-only overlap mass. If either book has a negative weight, the same number is still computed and `weighted_overlap_is_long_only` is false. It is not then described as a percentage of the portfolio.
-- Cosine similarity uses the aligned weight vectors, with a missing holding treated as weight zero. It measures composition similarity, not future returns.
-- Jaccard is `|intersection| / |union|` of the holdings sets. It ignores weights.
+- Weighted overlap is `sum_i min(w_i_A, w_i_B)`. With non-negative weights, it is long-only overlap mass. If either portfolio has a negative weight, the number is still computed and `weighted_overlap_is_long_only` is false; it is not interpreted as a portfolio percentage.
+- Cosine similarity uses aligned weight vectors, with an absent holding treated as zero. It measures composition similarity, not future returns.
+- Jaccard is `|intersection| / |union|` of the holdings sets and ignores weights.
 
 ## Crowding
 
-Security crowding counts how many ETFs in this universe hold the security, plus the sum, average, and maximum of reported weights. The denominator is the ETF count in the graph universe. It is not the share of all ETFs in the market.
+Security crowding counts ETFs holding a security and summarizes reported weights. Its denominator is the resolved ETF universe count used by the build, including resolved funds without an eligible filing. It is not the share of all ETFs in the market.
 
-Degree is the holdings count. Absolute weighted degree is the sum of absolute portfolio weights.
+ETF degree counts holdings edges. Absolute weighted degree sums absolute portfolio weights.
 
 ## Direct shock
 
@@ -33,18 +33,20 @@ direct_shock = sum(portfolio_weight_i * shock_i)
 covered_weight = sum(portfolio_weight_i)
 ```
 
-over holdings whose security is in the scenario. Missing weights are excluded. A negative weight can reverse the contribution. `covered_weight` is only the slice of the book named by the scenario.
+The sums include holdings named in the scenario. The scenario evaluator excludes missing edge weights and reports missing-weight coverage. A negative weight can reverse a contribution. `covered_weight` describes the named slice of the portfolio, without rescaling it to one.
 
-Learned secondary propagation is not implemented.
+Coverage is measured on the aggregated graph edges; [Graph Data Model](GRAPH_DATA_MODEL.md) documents the current all-null aggregation limitation. A shock result does not establish complete source-weight coverage.
 
-## Representation baseline
+The Python exporter writes selected graph edges and shocks to an explicit CSV contract for the native exposure engine. The native CLI can convert edge CSV to its binary snapshot format. See [Native Developer Guide](../native/README.md) and [Binary Protocol](BINARY_PROTOCOL.md).
 
-The optional PyTorch model learns ETF and security embeddings by reconstructing held links. The edge split is a hash of the pair. It is not the XGBoost time-series split. Embeddings are a structural description. They are not a forecast and they are not a recommendation.
+## Representation research
 
-## Scale
+An optional experimental PyTorch baseline exists in `research/graph/baseline.py`. Its intended task is held-link reconstruction using ETF/security embeddings and a deterministic hash-based edge split. That structural split is separate from the chronological XGBoost risk split.
 
-Per-fund N-PORT downloads are the Phase 7 path. The SEC also publishes quarterly bulk Form N-PORT data sets. Those files are large. They were not downloaded. They are the better source if this graph later covers hundreds of funds. The current parser remains the one that turns an NPORT-P document into holdings.
+Native Windows PyTorch execution was blocked by Application Control in the observed development environment. Successful graph-model training is not established by the presence of the baseline or its training script. See [Graph Research Environment](GRAPH_RESEARCH_ENVIRONMENT.md) for the isolated Linux/WSL setup.
 
-## Phase 11 research
+Validated learned embeddings, temporal models, and secondary propagation remain research workstreams in the [Roadmap](ROADMAP.md#temporal-shock-graph-research). They are not current analytical outputs or investment recommendations.
 
-Later work can stack these snapshots by publication date, add selected security market data, and compare a temporal model with this direct shock. That work is not in this phase.
+## Data acquisition boundary
+
+The implemented graph ingestion path uses per-fund NPORT-P discovery, download, and XML parsing. Bulk N-PORT ingestion is not implemented. Scaling and temporal graph plans belong in the [Roadmap](ROADMAP.md#temporal-shock-graph-research).

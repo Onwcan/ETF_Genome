@@ -1,4 +1,4 @@
-# Native C++20 market-data and exposure foundation
+# Native C++20 developer guide
 
 This C++20 module extends ETF Genome's Python research with a portable sparse
 exposure core and a Linux synthetic market-data pipeline: binary serialization,
@@ -13,11 +13,15 @@ cross-checks. It has no exchange connection, order routing, learned propagation,
 or live trading functionality. Python retains acquisition, research, ML, graphs,
 and the desktop. Full pybind11 integration remains future work. See
 [architecture](../docs/NATIVE_ARCHITECTURE.md), [binary protocol](../docs/BINARY_PROTOCOL.md),
-and [performance and validation](../docs/NATIVE_PERFORMANCE.md).
+and [performance measurements](../docs/NATIVE_PERFORMANCE.md). The
+[validation guide](../docs/VALIDATION.md) records correctness evidence; the
+[project roadmap](../docs/ROADMAP.md) is the single source for future work.
 
 ## Build and verify
 
 Run from the repository root with a C++20 compiler and CMake 3.16 or newer:
+
+### Linux and WSL2
 
 ```sh
 cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release \
@@ -32,31 +36,48 @@ ctest --test-dir build/native -C Release --output-on-failure
 ./build/native/etf-genome-native replay 200000
 ```
 
-On Windows with a multi-configuration generator, the binary is normally
-`build/native/Release/etf-genome-native.exe`. A single-configuration generator
-normally places it in `build/native/etf-genome-native.exe`. WSL can build and run
-the Linux executable with the commands above. Build artifacts belong in ignored
-`build/` directories.
+### Windows with MSVC
+
+Use an MSVC development environment with CMake. With a Visual Studio
+multi-configuration generator:
+
+```powershell
+cmake -S native -B build/native-msvc -DETF_GENOME_WARNINGS_AS_ERRORS=ON
+cmake --build build/native-msvc --config Release
+ctest --test-dir build/native-msvc -C Release --output-on-failure
+
+.\build\native-msvc\Release\etf-genome-native.exe demo
+.\build\native-msvc\Release\etf-genome-native.exe replay 200000
+.\build\native-msvc\Release\etf-genome-benchmark.exe --mode decoder --events 100000
+```
+
+Visual Studio places executables under the configuration directory. A
+single-configuration generator normally places them directly under the build
+directory; configure it with `-DCMAKE_BUILD_TYPE=Release`. WSL2 uses the Linux
+commands above. Build artifacts belong in ignored `build/` directories.
+
+### Sanitizers and platform selection
 
 Separate sanitizer builds are available for GCC and Clang on supported platforms:
 
 ```sh
 cmake -S native -B build/native-asan -DCMAKE_BUILD_TYPE=Debug \
-  -DETF_GENOME_ENABLE_SANITIZERS=ON
+  -DETF_GENOME_ENABLE_SANITIZERS=ON -DETF_GENOME_WARNINGS_AS_ERRORS=ON
 cmake --build build/native-asan
 ctest --test-dir build/native-asan --output-on-failure
 
 cmake -S native -B build/native-tsan -DCMAKE_BUILD_TYPE=Debug \
-  -DETF_GENOME_ENABLE_TSAN=ON
+  -DETF_GENOME_ENABLE_TSAN=ON -DETF_GENOME_WARNINGS_AS_ERRORS=ON
 cmake --build build/native-tsan
 ctest --test-dir build/native-tsan --output-on-failure
 ```
 
 ASan/UBSan and TSan use separate builds. These options are unsupported under MSVC;
-use the ordinary MSVC build or a supported GCC/Clang environment. Current local
-verification uses GCC 15.2 in Ubuntu 26.04 under WSL2. Windows/MSVC and Linux Clang
-were unavailable locally. CI configuration does not establish a remote result.
-Current test evidence is recorded in the performance document.
+use the ordinary MSVC build or a supported GCC/Clang environment. The native
+CI matrix verifies Linux GCC/Clang, Windows MSVC, ASan/UBSan, TSan, and
+Python/C++ parity. Dated results and verification scope are recorded in
+[VALIDATION.md](../docs/VALIDATION.md). Local performance measurements use a
+specific GCC/WSL2 environment and are separate from CI correctness checks.
 
 `ETF_GENOME_BUILD_NETWORK` defaults to `ON` on Linux and `OFF` elsewhere. Set it
 to `OFF` to build only the portable core. Enabling it on Windows produces a clear
@@ -162,8 +183,8 @@ usable slots without allocating after construction. Exactly one producer calls
 nonthrowing value semantics; the target must provide lock-free `size_t` atomics.
 Release/acquire publication protects a complete payload and prevents the producer
 from reusing a slot before the consumer has read it. Cached opposing indices and
-64-byte padding reduce shared-index traffic on typical targets; padding is not a
-universal statement about hardware cache-line sizes.
+64-byte padding keep control state separate and limit opposing-index acquire
+loads; the padding value does not describe every hardware cache-line size.
 
 The queue reports full/empty immediately. The replay chooses a yield-and-retry
 policy, so it preserves events and exposes backpressure through retry counters.
@@ -175,14 +196,14 @@ queue only after both participants have finished.
 Concurrent graph readers need separate workspaces; a workspace belongs to one
 consumer at a time.
 
-Each legacy replay event is an independent, one-security shock scenario. It does not
+Each scenario replay event is an independent, one-security shock scenario. It does not
 maintain market prices or accumulate a changing portfolio. The default synthetic
 graph has 128 ETFs, 1,024 securities, and 8,192 holdings rows, including signed
 weights and missing weights. Event payloads contain sequence, indexed security,
 and shock. Event generation, evaluation, and checksum accumulation use preallocated
 application state inside the loop.
 
-## Legacy replay methodology
+## Scenario replay methodology
 
 `replay [event_count]` defaults to 200,000 events and accepts 0 through 100,000,000.
 It warms each path with `min(event_count, 10000)` events, then measures a sequential
@@ -318,9 +339,12 @@ actions, execution costs, rebalancing, and learned propagation.
 Modes are `spsc`, `decoder`, `exposure`, Linux `tcp`, or `all`. Counts are 1 through
 10000000. JSON Lines output includes environment, warmup, measurement scope,
 throughput, checksum, counters, and p50/p90/p95/p99/p99.9/max nanoseconds.
-Setup and warmup are excluded. Histograms use nearest-rank estimates with exact
-min/max. Use repeated uninstrumented Release runs for performance evidence;
-Debug and sanitizer runs check correctness.
+Graph construction and warmup are excluded. TCP throughput includes client
+connection/setup, worker startup, and joins; the isolated queue timing starts
+after worker setup. Histograms use nearest-rank estimates with exact min/max.
+Use repeated uninstrumented Release runs for performance evidence; Debug and
+sanitizer runs check correctness. Exact timing boundaries are documented in
+the performance record.
 
 `--allocations` counts replaceable C++ operator-new calls in named scopes. TCP
 instrumentation covers only the exposure callback. It cannot establish zero

@@ -1,29 +1,32 @@
 # Graph research environment
 
-PyTorch stays out of the desktop virtual environment and out of `ETFGenome.exe`.
+Graph training is isolated from the desktop environment. PyTorch is excluded from `ETFGenome.exe`, and the desktop does not import `research.graph`.
 
-Create the research environment with Python 3.12:
+Native Windows PyTorch loading was blocked by Windows Application Control in the observed development environment. This is an environment-specific constraint, not a general Windows limitation. Use a dedicated Linux or WSL2 research environment without weakening Windows security policy.
 
-```powershell
-py -3.12 -m venv .venv-graph
-.\.venv-graph\Scripts\python.exe -m pip install -U pip
-.\.venv-graph\Scripts\python.exe -m pip install torch
-.\.venv-graph\Scripts\python.exe -m pip install -e .
+## Isolated Linux or WSL setup
+
+From the repository root in Linux/WSL, with Python 3.12 available:
+
+```bash
+python3.12 -m venv .venv-graph
+.venv-graph/bin/python -m pip install -U pip
+.venv-graph/bin/python -m pip install -e .
 ```
 
-Check the install:
+Install PyTorch into that environment using the [official installation selector](https://pytorch.org/get-started/locally/) with Linux, Pip, Python, and CPU selected. Run its installer command through `.venv-graph/bin/python -m pip`. Package installation and successful tensor creation must be checked in the target environment; these instructions do not establish completed graph training.
 
-```powershell
-.\.venv-graph\Scripts\python.exe -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
+Verify the installed package and CPU tensor path:
+
+```bash
+.venv-graph/bin/python -c "import torch; print(torch.__version__); print(torch.rand(2, 2)); print(torch.cuda.is_available())"
 ```
 
-CPU execution is required. CUDA is used only when that import succeeds and a CUDA tensor can be created. Do not change Windows security policy if a native library is blocked.
+CPU execution is the baseline. CUDA is optional and is selected by the research code only when availability checks and CUDA tensor creation succeed. PyTorch Geometric is not required by the pure-PyTorch baseline, and `torch-geometric-temporal` is not used.
 
-PyTorch Geometric is optional. If its native extensions are blocked, the representation baseline in `research/graph/baseline.py` is pure PyTorch. `torch-geometric-temporal` is not required and is not used. It remains a candidate for a later temporal model only after snapshots and a working PyTorch import exist.
+## Build graph data
 
-The desktop package does not import `research.graph`. The packaging spec excludes `torch` and `torch_geometric`.
-
-Graph data commands use the main environment, because they only need Polars and the existing SEC client:
+Graph ingestion and analytical commands require the core project dependencies, not PyTorch. In a Windows source checkout:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\sync_graph_universe.py
@@ -31,10 +34,16 @@ Graph data commands use the main environment, because they only need Polars and 
 .\.venv\Scripts\python.exe scripts\run_shock_scenario.py 2026-09-26 scenario.json
 ```
 
-Training uses the graph environment:
+The date selects a stored publication-aware snapshot; the commands require configured SEC access and local graph data. Supply your own scenario JSON. These examples are not automatic downloads performed during environment setup.
 
-```powershell
-.\.venv-graph\Scripts\python.exe scripts\train_graph_baseline.py 2026-09-26
+## Experimental baseline
+
+Once the selected graph artifacts exist and PyTorch runs in the research environment:
+
+```bash
+.venv-graph/bin/python scripts/train_graph_baseline.py 2026-09-26
 ```
 
-Airflow and Kubeflow are not required to build or train the graph. The same `etf_genome.graph` functions can be called by those orchestrators later.
+The script invokes the held-link reconstruction baseline. Its existence does not imply validated embeddings, a trained temporal model, or causal shock propagation. [Project Status](PROJECT_STATUS.md) records current evidence, and the [Roadmap](ROADMAP.md#temporal-shock-graph-research) owns temporal graph plans.
+
+Airflow and Kubeflow are not required for these commands. See [Orchestration Architecture](ORCHESTRATION_ARCHITECTURE.md) for their separate roles.

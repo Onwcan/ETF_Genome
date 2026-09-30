@@ -1,14 +1,15 @@
 # Native market-data architecture
 
-Phase 8 extends the existing exposure/queue module into a C++20 systems
-foundation. Python retains acquisition, SEC and market-provider normalization,
-point-in-time storage, research, ML, graph export, and the PySide6 desktop. C++
+ETF Genome's C++20 systems layer combines a portable exposure core with a
+synthetic Linux market-data pipeline. Python retains acquisition, SEC and
+market-provider normalization, point-in-time storage, research, ML, graph export,
+and the PySide6 desktop. C++
 owns the separate synthetic runtime: framing, Linux networking, event transfer,
 price state, sparse updates, measurement, and shutdown. The desktop does not
 start this runtime. No exchange or order-routing adapter is implemented.
 
 ```mermaid
-flowchart LR
+flowchart TB
     PY[Python point-in-time graph] --> CSV[Explicit CSV export]
     CSV --> GRAPH[Immutable sparse graph]
     GRAPH --> SNAP[Optional versioned binary snapshot]
@@ -40,7 +41,9 @@ Warnings-as-errors is optional locally and enabled in CI. Networking defaults
 on for Linux, off elsewhere, and can be disabled for a portable-only build.
 ASan/UBSan and TSan are separate configurations. No mandatory paid library,
 subscription, or hosted infrastructure is introduced. Local verification and
-unavailable toolchains are recorded in [NATIVE_PERFORMANCE.md](NATIVE_PERFORMANCE.md).
+toolchain results are recorded in [VALIDATION.md](VALIDATION.md). Local benchmark
+methodology and results are recorded separately in
+[NATIVE_PERFORMANCE.md](NATIVE_PERFORMANCE.md).
 
 ## Network lifecycle and failure behavior
 
@@ -70,7 +73,7 @@ unconsumed tail. Protocol errors are sticky until reset. The feed enqueue sink
 normally waits until accepted, so it does not discard a valid frame on full.
 
 EOF with a partial/undelivered frame is an error. EOF at a frame boundary is
-clean even if no SnapshotEnd was received: this phase validates framing, not a
+clean even if no SnapshotEnd was received: the runtime validates framing, not a
 complete application-session state machine. Sequence anomalies are counted and
 still delivered. There is no gap recovery, reconnect, deduplication history,
 TLS, authentication, or exchange-specific semantics. The binary contract is
@@ -100,7 +103,7 @@ backpressure: failed pushes increment `queue_full_events`, then sleep on a
 notification with a 1 ms bounded wait before retrying. The same message can
 produce several failed attempts; the counter is not a dropped-message count.
 While waiting, reading stops and kernel TCP backpressure reaches the sender.
-The isolated queue benchmark and legacy replay instead yield and retry.
+The isolated queue benchmark and scenario replay instead yield and retry.
 Notifications use a mutex only for waiting; payload ownership remains SPSC.
 
 SIGINT/SIGTERM handlers only set `sig_atomic_t`. Main requests a shared stop
@@ -145,7 +148,7 @@ count replaceable C++ operator-new calls only in named post-warmup scopes;
 TCP instrumentation covers the exposure callback. The performance document
 does not infer process-wide allocation freedom from those counters.
 
-## Python boundary and planned phases
+## Python artifact boundary
 
 `scripts/export_native_graph.py` exports an already selected point-in-time edge
 snapshot and scenario. CSV preserves signed/missing weights and ids; the native
@@ -158,10 +161,8 @@ price-stream tests compare persistent state against a scalar mathematical
 reference and check signed, missing, zero, duplicate, and invalid inputs. A
 separate native process is the current boundary. Full pybind11 integration is
 **not implemented**. The desktop retains its existing behavior and dependency
-graph; there is no major GUI redesign.
+graph; its backend remains Python.
 
-Phase 9 is deeper Linux profiling and native performance engineering: cache and
-branch behavior, allocator comparisons, false sharing, affinity experiments,
-syscalls, batching, optional busy polling, tail analysis, and reproducibility.
-Phase 10 is explicit Python/C++ integration. [Phase 11](PHASE11_ROADMAP.md)
-retains temporal graph research. These phases are future work.
+Future performance engineering, Python/C++ integration, runtime reliability,
+and temporal graph research are maintained in the
+[project roadmap](ROADMAP.md).

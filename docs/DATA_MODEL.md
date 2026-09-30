@@ -1,6 +1,8 @@
 # Data model
 
-Phase 1 stores denormalized holdings snapshots. A snapshot is one fund on one date. Identity fields are repeated on each row so a single Parquet file can be queried without a join. That repetition is deliberate for analytical reads. `FundMetadata` in SQLite is the small catalog copy of the fund attributes.
+The data layer stores denormalized holdings snapshots. A snapshot is one fund on one portfolio date. Identity fields are repeated on each row so a single Parquet file can be queried without a join. That repetition is deliberate for analytical reads. `FundMetadata` in SQLite is the small catalog copy of the fund attributes.
+
+This document defines holdings, concentration, and drift semantics. See [Architecture](ARCHITECTURE.md) for subsystem ownership, [Market Data](MARKET_DATA.md) for daily bars, and [Graph Data Model](GRAPH_DATA_MODEL.md) for graph artifacts.
 
 ## Identifiers
 
@@ -11,9 +13,9 @@ Phase 1 stores denormalized holdings snapshots. A snapshot is one fund on one da
 | `cik`, `series_id`, `class_id` | SEC-style identifiers when the source has them. |
 | `security_id` | Internal holding key. Preference: `cusip:`, `isin:`, `ticker:`, then `name:`. |
 | `security_ticker` | Constituent ticker. This is separate from the fund ticker. |
-| `cusip`, `isin` | Stored when the source provides them. Missing values stay null. Invalid CUSIPs are not dropped in Phase 1; `cusip_is_valid` is available for later quality checks. |
+| `cusip`, `isin` | Stored when the source provides them. Missing values stay null. Invalid CUSIPs are retained; `cusip_is_valid` is available for quality checks. |
 
-A security that appears twice in one snapshot under the same `security_id` is one economic position. Quantities, market values, and weights are summed. If descriptive fields disagree, that field is stored as null and the normalization result carries a warning. Summing assumes the rows are lots of the same security. Exact duplicate filings would be double-counted; the warning is the signal to inspect them. Phase 1 does not silently discard the extra row.
+A security that appears twice in one snapshot under the same `security_id` is one economic position. Quantities, market values, and weights are summed. If descriptive fields disagree, that field is stored as null and the normalization result carries a warning. Summing assumes the rows are lots of the same security. Exact duplicate rows would be double-counted; the warning is the signal to inspect them. The normalizer does not silently discard the extra row.
 
 ## Canonical holdings columns
 
@@ -25,7 +27,9 @@ A security that appears twice in one snapshot under the same `security_id` is on
 
 `portfolio_weight` is a fraction. `0.25` means 25 percent of the reported basis. Callers pass `weight_unit="percent"` when the source column is a percent. There is no automatic unit guess. A guess would rescale a real portfolio.
 
-`market_value_scale` defaults to 1. N-PORT's `value` field is thousands of US dollars. `frame_from_nport_like` multiplies that field by 1000 and converts `pctVal` from a percent to a fraction. The normalizer itself does not special-case a column named `value`, because that name is ambiguous.
+`market_value_scale` defaults to 1. The SEC XML parser reads `valUSD` as US dollars and converts `pctVal` from a percent to a fraction. It does not multiply `valUSD` by 1000.
+
+The separate `frame_from_nport_like` adapter accepts dictionary fixtures and other N-PORT-like records. Its `value_in_thousands=True` default scales a supplied `value` field by 1000; callers with dollar-valued records must set it to false. An explicit `market_value` field is already canonical and is not rescaled by that adapter. The normalizer itself does not infer units from a column name.
 
 Null means the source did not provide the value. The pipeline does not fill missing ISINs, sectors, countries, or industries.
 
@@ -37,7 +41,7 @@ Weights are derived from market value only when, for an entire snapshot, every w
 | --- | --- | --- |
 | Parquet | One file at `processed/holdings/{safe_fund_id}/{YYYY-MM-DD}.parquet` | Columnar snapshot storage. The desktop app can read it without a database server. Fund ids are encoded to a single Windows-safe directory name; the original `fund_id` remains inside the file and the SQLite catalog. |
 | SQLite | `catalog.sqlite` | Fund metadata and the snapshot index. Small, transactional, local. |
-| DuckDB | `analytics.duckdb` plus `read_parquet` | Aggregations over the Parquet files. Connections are opened per query and closed, so a Windows file lock does not outlive the call. If the DuckDB native library cannot be loaded, `LocalHoldingsStore.summarize` runs the same group-by in Polars and reports `polars_fallback`. |
+| DuckDB | `analytics.duckdb` plus `read_parquet` | Aggregations over the Parquet files. Connections are opened per query and closed, so a Windows file lock does not outlive the call. If the DuckDB native library cannot be loaded, `LocalHoldingsStore.summarize` computes holdings count and weight sum in Polars and reports `polars_fallback`; see [DuckDB on Windows](DUCKDB_WINDOWS.md). |
 | File cache | `cache/sec/{sha256}.body` | SEC response bodies with a TTL. The URL is not used as a path. |
 
 Writes replace a snapshot file via a temporary file in the same directory. Reading a missing snapshot raises `SnapshotNotFound`.
@@ -85,7 +89,7 @@ KL uses log base 2, and `0 * log(0)` is treated as 0. The distance is 0 when the
 
 Cosine distance (`1 - cosine similarity`, similarity clamped to [-1, 1]) is used only when a negative weight makes Jensen-Shannon undefined. The report names the metric in `overall_drift_metric`. `overall_drift` is that holdings distance. It is not a blend of sector drift and concentration drift, and it is not a buy or sell score.
 
-Sector drift uses the same rule on sector weights, including the `UNCLASSIFIED` bucket when a sector is missing. If neither snapshot has a real sector classification, sector drift is unavailable. N-PORT does not provide GICS sectors, so the SEC path leaves `sector` null and does not infer one from the security name.
+Sector drift uses the same rule on sector weights, including the `UNCLASSIFIED` bucket when a sector is missing. If neither snapshot has a real sector classification, sector drift is unavailable. The SEC XML adapter leaves `sector` null and does not infer a GICS classification from the security name.
 
 For an SEC filing, `snapshot_date` is `repPdDate`, the submissions `filingDate` is the publication date, and `downloaded_at` in the catalog is when ETF Genome stored the file.
 
@@ -109,7 +113,9 @@ For ranking increases and decreases, a security missing from one snapshot has we
 
 ## Look-ahead and leakage
 
-Phase 1 does not train a predictor, so it does not split a sample. The snapshot date is still the only time key the features use. Later supervised work should train, validate, and test by time. It should not randomly shuffle dates, and it should not use a revised macro value that was unavailable on the snapshot date. FRED/ALFRED point-in-time handling is Phase 5 and is not implemented here.
+Concentration and drift describe portfolio snapshots; they are not predictors. The risk dataset uses chronological train, validation, and test partitions, and publication-aware holdings features become eligible only on or after the filing's `available_from` date. A portfolio report date does not establish that the report was public then.
+
+The final test split is excluded from hyperparameter tuning. See [Optuna](OPTUNA.md) and [Model Lifecycle](MODEL_LIFECYCLE.md) for the training and promotion boundary. FRED/ALFRED remains an interface only; macroeconomic vintage ingestion is not implemented. Planned research belongs in the [Roadmap](ROADMAP.md).
 
 ## Domain objects
 

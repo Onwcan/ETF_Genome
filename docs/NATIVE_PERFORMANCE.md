@@ -1,9 +1,9 @@
-# Native performance and verification record
+# Native performance measurements
 
 Measured locally on 30 September 2026. These results describe the synthetic
-Phase 8 workload and this machine. They do not establish exchange latency,
+localhost workload and this machine. They do not establish exchange latency,
 cross-machine performance, trading profitability, or a concurrency speedup.
-Remote CI has not been run as part of this verification.
+Remote CI validates correctness; it did not produce these benchmark results.
 
 ## Machine and toolchain
 
@@ -19,9 +19,7 @@ Remote CI has not been run as part of this verification.
 | Compile flags | `-O3 -DNDEBUG -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror -std=c++20` |
 | Affinity | Disabled; allowed logical CPU ids 0 through 23 |
 | Allocation instrumentation | Disabled for the five performance runs; separate enabled verification run |
-| Linux Clang | NOT AVAILABLE locally |
-| Windows MSVC | NOT AVAILABLE locally; Windows native build NOT RUN |
-| perf | NOT RUN; executable unavailable locally |
+| perf | NOT RUN for the recorded measurements |
 
 The runs were performed sequentially after local builds/tests finished. Other
 desktop and OS activity, power policy, CPU frequency, thermal state, virtualization,
@@ -125,36 +123,13 @@ is unmeasured and must not be interpreted as evidence. This verifies the named
 preallocated loops, not zero allocations across the whole application or TCP
 path. Instrumented timing is kept separate from the performance table.
 
-## Correctness and sanitizer results
+## Correctness context
 
-| Check | Local result |
-| --- | --- |
-| GCC Release, strict warnings as errors | 9/9 CTest passed |
-| GCC Debug ASan + UBSan | 9/9 CTest passed; no diagnostics |
-| GCC Debug TSan | 9/9 CTest passed; no race diagnostics |
-| GCC portable-only Release, networking disabled | 8/8 CTest passed |
-| Python Ruff lint/format | Passed; 165 formatted files |
-| Python mypy | Passed; 111 modules |
-| Python regression suite with configured native binary | 178 passed, 2 opt-in live tests skipped, 1 Git-exercising publication test deliberately deselected |
-| Python/native parity | Signed/missing weights and aliases match within 1e-12; binary/CSV output equality passed |
-| Source privacy scan | 274 source files; no detected secret/contact/personal-path findings; filesystem-only scan |
-| Linux Clang / Windows MSVC | NOT RUN, local toolchains unavailable |
-| perf stat | NOT RUN, executable unavailable |
-| Remote CI | Configured only; no remote pass claimed |
-
-CTest includes the preserved static graph/CSV/replay checks, queue wrap and
-concurrent FIFO payload validation, binary golden bytes, all fragmentation cuts,
-coalescing, sticky errors/EOF, sequence and histogram edges, persistent price
-scalar-reference checks, snapshot round trips/corruption/bounds, loopback
-disconnect/malformed frames, full-queue backpressure, stop/drain behavior,
-invalid latency timestamps, and allocation-hook self-check. Standalone CLI
-checks also covered CSV/binary feed parity, instrument counts through 100000,
-invalid affinity cleanup, and SIGTERM during accept and paced reception.
-
-Sanitizers cover these exercised paths; their passing results do not prove that
-all concurrency schedules or exceptional OS failures are safe. No sanitizer
-timing is used for the performance table. No live provider, exchange, order,
-GPU training, or deployment was exercised.
+The verification strategy and dated evidence for GCC, Clang, MSVC, sanitizers,
+Python regression checks, and numerical parity are maintained in
+[VALIDATION.md](VALIDATION.md). That correctness evidence is separate from the
+local GCC benchmark environment above. GitHub runner timing is not used in this
+performance table, and sanitizer timing is not a performance measurement.
 
 ## Reproduction
 
@@ -165,47 +140,31 @@ cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release \
   -DETF_GENOME_WARNINGS_AS_ERRORS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build build/native --parallel 4
 ctest --test-dir build/native --output-on-failure
-mkdir -p reports/phase8
+mkdir -p reports/native-performance
 for run in 1 2 3 4 5; do
   ./build/native/etf-genome-benchmark --mode all --events 10000000 \
-    > "reports/phase8/release-run-${run}.jsonl"
+    > "reports/native-performance/release-run-${run}.jsonl"
 done
 ./build/native/etf-genome-benchmark --mode all --events 100000 --allocations \
-  > reports/phase8/allocation-check.jsonl
+  > reports/native-performance/allocation-check.jsonl
 ```
 
-Raw local JSON Lines and the computed summary are retained in ignored
-`reports/phase8/`; they are not distributed as research data. Public aggregate
-results above are the recorded local evidence. Use the same build, event counts,
+Raw local JSON Lines and the computed summary are retained as ignored local
+reports; they are not distributed as research data. The commands above choose
+`reports/native-performance/` for new runs. Public aggregate results above are
+the recorded local evidence. Use the same build, event counts,
 graph, affinity policy, and measurement scopes for comparisons, retain every
 run, and report variability. Separate sanitizer commands are in
 [native/README.md](../native/README.md). Python imports must point to this source
 checkout when using an interpreter installed against another editable checkout.
 
-`.github/workflows/native.yml` configures Linux GCC/Clang Release, Windows MSVC,
-Clang ASan/UBSan, GCC TSan, CTest, and Python/native parity. CI timings are smoke
-checks, not stable hardware benchmarks. The existing Python workflow is retained.
+## Interpretation and limits
 
-## Bugs corrected and known limits
-
-Observed corrections in this phase include incomplete synthetic client coverage
-above 1715 securities; alternate-path/hard-link snapshot output overwriting its
-CSV input; zero/future timestamps polluting latency histograms; and binary graph
-weight reconstruction overflowing an intermediate sum whose final value cancels.
-Regression tests cover the latter three and CLI checks cover synthetic universe
-bounds. Cleanup also handles an allocation failure during consumer-thread
-startup by stopping/joining the already started producer.
-
-Snapshot output is explicitly flushed before reporting success. A write to
-Linux `/dev/full` correctly returned status 2 with a flush error. Binary tests
-also recompute checksums on invalid counts, offsets, aliases, flags, and weights,
-ensuring structural validation is exercised independently of checksum rejection.
-
-Known limits include unverified local Windows/Clang builds, unavailable perf,
+Known limits include unavailable local perf evidence,
 uncontrolled WSL scheduling/power conditions, reused-frame decoder workload,
 approximate histogram quantiles, callback-only TCP allocation measurement,
 external graph-id/tick mapping, no session recovery/completion validation, and
 possible accumulated double rounding over long price streams. The engine is a
 synthetic systems foundation; full pybind11 and temporal forecasting remain
-unimplemented. Phase 9 should address profiling and reproducibility before
-Phase 10 integration; Phase 11 retains temporal research.
+unimplemented. Future profiling and integration work is described in the
+[project roadmap](ROADMAP.md).

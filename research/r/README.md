@@ -1,3 +1,5 @@
 # R research
 
-Not part of Phase 1, and not required by the Windows application. Later statistical checks, bootstrap work, and research reports can live here. The desktop app should read exported tables or reports rather than calling R.
+No R implementation is included in this directory. The current analytical and training workflows use Python, and the desktop runtime has no R dependency.
+
+Any external R analysis should exchange validated tables or reports through the artifact boundary described in the [system architecture](../../docs/ARCHITECTURE.md). See [project status](../../docs/PROJECT_STATUS.md) for current functionality and the [roadmap](../../docs/ROADMAP.md) for future work.

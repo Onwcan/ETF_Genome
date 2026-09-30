@@ -40,7 +40,7 @@ the current exposure engine. SnapshotStart count must match the engine universe.
 
 The count does not carry identities or a graph fingerprint. Equal counts cannot
 detect a mismatched mapping. The producer/consumer must agree on the same graph
-and tick unit before starting. This phase has no symbology negotiation.
+and tick unit before starting. Symbology negotiation is not implemented.
 
 The synthetic server emits SnapshotStart, Heartbeat, N PriceUpdates, SnapshotEnd
 with consecutive sequences, then EOF. Sequences do not wrap. Gap counts mean
@@ -61,9 +61,11 @@ with a sticky error; reset is explicit, with no scanning for a new magic marker.
 `feed()` returns bytes consumed, accepted frame count, and error. If a sink
 returns false, the completed message is retained and `SinkStopped` is returned.
 No later bytes are consumed. Retry delivery with empty input, then supply the
-unconsumed tail. The caller owns that tail. A null sink is `InvalidSink`.
-`finish()` reports truncation for a partial or undelivered frame. An empty
-decoder at EOF is clean; framing validation does not enforce the full session
+unconsumed tail. The caller owns that tail. A null sink returns `InvalidSink`
+without consuming input. `finish()` returns `TruncatedFrame` for a partial
+frame and `SinkStopped` for a complete frame still awaiting sink acceptance;
+an existing protocol error remains unchanged. An empty decoder at EOF is clean;
+framing validation does not enforce the full session
 order or require SnapshotEnd. The network feed blocks its sink stop-aware on a
 full queue, preserving accepted valid messages.
 

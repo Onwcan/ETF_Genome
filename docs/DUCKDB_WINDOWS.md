@@ -1,20 +1,20 @@
-# DuckDB on this Windows machine
+# DuckDB on Windows
 
-The DuckDB package is installed and its extension file is present:
+DuckDB provides analytical SQL over local holdings Parquet files. A native Windows development environment previously blocked its extension through Application Control, while Polars could still load. This is an observed environment-specific constraint, not a claim that DuckDB fails on every Windows installation.
 
-```text
-.venv\Lib\site-packages\_duckdb.cp312-win_amd64.pyd
-```
-
-Importing it fails before PyInstaller is involved:
+The observed error occurred during a direct DuckDB import, before PyInstaller packaging:
 
 ```text
 ImportError: DLL load failed while importing _duckdb:
 Uygulama Denetimi ilkesi bu dosyayı engelledi.
 ```
 
-That message is Windows application control (the policy that blocks a binary). Polars 1.44.2 imports successfully in the same environment, so this is not a general failure to load native code, not a missing Visual C++ runtime message, and not a PyInstaller extraction problem.
+## Implemented fallback
 
-The frozen build logs the same import failure while collecting DuckDB. The executable keeps the Polars summary fallback. `analytics_engine` is `polars_fallback` when DuckDB cannot load and `duckdb` when it can.
+`LocalHoldingsStore.summarize` probes the DuckDB import. If it succeeds, the summary uses DuckDB and reports `analytics_engine=duckdb`. If the import fails, the holdings count and weight-sum summary uses Polars and reports `analytics_engine=polars_fallback`.
 
-No packaging change can make a policy-blocked DLL load, and this project does not ask for application control to be disabled. DuckDB remains the analytical path whenever the import succeeds.
+The fallback covers that holdings summary, not arbitrary DuckDB SQL. The application logs the original import error. A missing package or another import failure should be diagnosed from the actual target environment rather than assumed to have the same policy cause.
+
+The PyInstaller specification attempts to collect DuckDB when its native library can load. A build made in a constrained environment therefore needs the same target-machine verification as any other native dependency. See [Windows Packaging](WINDOWS_PACKAGING.md) for build and smoke commands and [Validation](VALIDATION.md) for recorded evidence.
+
+No security-policy change is part of ETF Genome setup. Use the supported summary fallback when DuckDB cannot load, and verify direct imports and the packaged application in the intended release environment.
